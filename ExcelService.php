@@ -317,7 +317,7 @@ class ExcelService
         if(empty($this->mainTitle)){
             $this->mainTitle = $this->fileName;
         }
-        $colCount = (isset($data[0]) && count($data[0]) <= 0)? 10 : count($data[0]);
+        $colCount = (isset($data[0]) && count($data[0]) > 0) ? count($data[0]) : 10;
         $this->worksheet->setCellValue('A4', $this->mainTitle);
         $this->worksheet->mergeCells("A4:" . Coordinate::stringFromColumnIndex($colCount) . "4");
         $this->worksheet->getStyle('A4')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
@@ -351,11 +351,13 @@ class ExcelService
      */
     public function setListMainTitle($dataMainTitle,$dataSource)
     {
+        $this->currentRow += 2;
+        $this->currentRow ++;
         $column = 'A';
-        $colCount = (isset($dataSource[0]) && count($dataSource[0]) <=0)?10:count($dataSource[0]);
+        $colCount = (isset($dataSource[0]) && count($dataSource[0]) > 0)?count($dataSource[0]):10;
         $this->worksheet->setCellValue($column . $this->currentRow, $dataMainTitle);
         $this->worksheet->mergeCells($column . $this->currentRow.":" . Coordinate::stringFromColumnIndex($colCount) . $this->currentRow);
-        $this->worksheet->getStyle($column . $this->currentRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $this->worksheet->getStyle($column . $this->currentRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
         $this->currentRow ++;
     }
 
@@ -365,6 +367,7 @@ class ExcelService
      */
     public function setListTitle($dataTitles)
     {
+        $this->currentRow += 1;
         $column = 'A';
         if(!empty($dataTitles)){
             foreach ($dataTitles as $title) {
@@ -419,6 +422,7 @@ class ExcelService
                 }
             }
         }
+        $this->currentRow ++;
     }
 
     /**
