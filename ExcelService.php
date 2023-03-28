@@ -41,6 +41,7 @@
  *      "data" => [
  *          [
  *              "type" => 4,
+ *              "mainTitle" => '子标题',
  *              "title" => ['姓名', '年龄', '性别'],
  *              "list" =>
  *              [
@@ -128,6 +129,7 @@ use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
+use PhpOffice\PhpWord\Collection\Charts;
 
 
 class ExcelService
@@ -312,10 +314,10 @@ class ExcelService
     public function setMainTitle($mainTitle, $data)
     {
         $this->mainTitle = $mainTitle;
-        if(empty($this->logoPath)){
+        if(empty($this->mainTitle)){
             $this->mainTitle = $this->fileName;
         }
-        $colCount = count($data[0]);
+        $colCount = (isset($data[0]) && count($data[0]) <= 0)? 10 : count($data[0]);
         $this->worksheet->setCellValue('A4', $this->mainTitle);
         $this->worksheet->mergeCells("A4:" . Coordinate::stringFromColumnIndex($colCount) . "4");
         $this->worksheet->getStyle('A4')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
@@ -327,14 +329,34 @@ class ExcelService
      */
     public function setList($data)
     {
+        $dataMainTitle = getter($data,'mainTitle');
         $dataTitles = getter($data,'title');
         $dataSource = getter($data,'list');
+        if(!empty($dataMainTitle)){
+            $this->setListMainTitle($dataMainTitle,$dataSource);
+        }
         if(!empty($dataTitles)){
             $this->setListTitle($dataTitles);
         }
         if(!empty($dataSource)){
             $this->setListData($dataSource);
         }
+    }
+
+    /**
+     * 设定列表附属大标题
+     * @param $dataMainTitle
+     * @param $dataSource
+     * @throws \PhpOffice\PhpSpreadsheet\Exception
+     */
+    public function setListMainTitle($dataMainTitle,$dataSource)
+    {
+        $column = 'A';
+        $colCount = (isset($dataSource[0]) && count($dataSource[0]) <=0)?10:count($dataSource[0]);
+        $this->worksheet->setCellValue($column . $this->currentRow, $dataMainTitle);
+        $this->worksheet->mergeCells($column . $this->currentRow.":" . Coordinate::stringFromColumnIndex($colCount) . $this->currentRow);
+        $this->worksheet->getStyle($column . $this->currentRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $this->currentRow ++;
     }
 
     /**
@@ -422,6 +444,9 @@ class ExcelService
         //类型 1饼图2柱状图3折线图
         $type = (isset($dataSource['type']) && !empty($dataSource['type'])) ? $dataSource['type'] : '1';
 
+        //颜色(目前phpspreadSheet版本暂不支持自定义图表颜色)
+        $colors = (isset($dataSource['colors']) && !empty($dataSource['colors'])) ? $dataSource['colors'] :  ['#FF0000', '#00FF00']; // 指定颜色，例如：红色和绿色
+
         if($type == 1){
             //处理数据全部为0的情况
             $total = 0;
@@ -488,7 +513,7 @@ class ExcelService
         //循环渲染多列数据
         foreach(getter($data,0) as $key => $item){
             if($key > 0){
-                $this->chartStartColumn = $this->calculateEndpoint($this->chartStartColumn,$key);
+                $this->chartStartColumn = $this->calculateEndpoint($this->chartStartColumn,1);
                 array_push($saveChartStartColumn,$this->chartStartColumn);
                 //设置图表比例显示的来源
                 $dataSeriesLabels1[] = new \PhpOffice\PhpSpreadsheet\Chart\DataSeriesValues('String', 'Worksheet!$'.$this->chartStartColumn.'$1', NULL, 1);
@@ -496,6 +521,7 @@ class ExcelService
                 $dataSeriesValues1[] = new \PhpOffice\PhpSpreadsheet\Chart\DataSeriesValues('Number', 'Worksheet!$'.$this->chartStartColumn.'$2:$'.$this->chartStartColumn.'$'.count($data), NULL, (count($data) - 1)); //4	 Q1 to Q4
             }
         }
+
         // 构建数据
         $series1 = new \PhpOffice\PhpSpreadsheet\Chart\DataSeries(
         //这里设置生成图表类型（折线图，柱状图，饼状图…）
@@ -509,7 +535,7 @@ class ExcelService
             //X轴数据
             $xAxisTickValues1,										// plotCategory
             //绘图所需数据
-            $dataSeriesValues1										// plotValues
+            $dataSeriesValues1,										// plotValues
         );
 
         //这里有个重要的配置，主要对图表柱状图绘图方式的设置。（横着展示还是竖着展示）
@@ -544,10 +570,9 @@ class ExcelService
             NULL			// yAxisLabel		- Pie charts don't have a Y-Axis
         );
 
-
         //设置图形绘制区域范围
         $chart1->setTopLeftPosition('A'.$this->currentRow);
-        $chart1->setBottomRightPosition('F'. ($this->currentRow + 20));
+        $chart1->setBottomRightPosition('J'. ($this->currentRow + 20));
 
         $this->currentRow += 22;
 
